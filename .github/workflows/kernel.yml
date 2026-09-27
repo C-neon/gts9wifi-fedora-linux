@@ -105,6 +105,8 @@ jobs:
       # no RPM/bundle round-trip through a personal machine.  The release is
       # created when it does not exist yet; --clobber replaces same-named
       # assets, so re-running against the same tag keeps a stable asset set.
+      - name: Fix ownership
+        run: sudo chown -R $USER:$USER out-kernel out-bundle out-twrp
       - name: Publish assets to the named release
         env:
           GH_TOKEN: ${{ github.token }}
