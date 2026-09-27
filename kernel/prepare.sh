@@ -256,6 +256,16 @@ SP_HLOS_KCONFIG
 grep -q 'qcom_sp_hlos_heap.o' drivers/dma-buf/heaps/Makefile || \
     echo 'obj-$(CONFIG_DMABUF_HEAPS_SP_HLOS)\t+= qcom_sp_hlos_heap.o' >> drivers/dma-buf/heaps/Makefile
 
+# Samsung STM32 Pogo Keyboard
+cp "$here/files/samsung_stm32_pogo.c" drivers/input/keyboard/
+grep -q 'KEYBOARD_SAMSUNG_STM32_POGO' drivers/input/keyboard/Kconfig || sed -i '/^endif/i \
+config KEYBOARD_SAMSUNG_STM32_POGO\
+\ttristate "Samsung STM32 Pogo Keyboard"\
+\tdepends on I2C && INPUT\
+' drivers/input/keyboard/Kconfig
+grep -q 'samsung_stm32_pogo.o' drivers/input/keyboard/Makefile || \
+    echo 'obj-$(CONFIG_KEYBOARD_SAMSUNG_STM32_POGO) += samsung_stm32_pogo.o' >> drivers/input/keyboard/Makefile
+
 # Kernel release tag must match the rootfs modules (vermagic ABI).
 echo "-gts9wifi" > localversion-gts9wifi
 

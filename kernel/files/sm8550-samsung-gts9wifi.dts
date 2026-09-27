@@ -158,6 +158,19 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+	
+	/*
+        * Logic power for the STM32 in Samsung's pogo keyboard.
+        * Active-high switch on TLMM GPIO10 feeds stm32@2a as vddo-supply.
+        */
+	pogo_vddo: pogo-vddo-regulator {
+        compatible = "regulator-fixed";
+        regulator-name = "pogo_vddo";
+        gpio = <&tlmm 10 GPIO_ACTIVE_HIGH>;
+        enable-active-high;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pogo_vddo_en>;
+        };
 
 	wcn6855_pmu: wcn6855-pmu {
 		compatible = "qcom,wcn6855-pmu";
@@ -904,6 +917,49 @@
 		drive-strength = <2>;
 		bias-disable;
 	};
+
+	pogo_vddo_en: pogo-vddo-en-state {
+        pins = "gpio10";
+        function = "gpio";
+        drive-strength = <2>;
+        bias-disable;
+        output-low;
+        };
+
+        pogo_control: pogo-control-state {
+            boot-pins {
+                pins = "gpio12";
+                function = "gpio";
+                drive-strength = <2>;
+                bias-pull-down;
+                output-low;
+            };
+            reset-pins {
+                pins = "gpio13";
+                function = "gpio";
+                drive-strength = <2>;
+                bias-pull-down;
+                output-low;
+            };
+        };
+
+        pogo_irqs: pogo-irqs-state {
+            conn-pins {
+                pins = "gpio62";
+                function = "gpio";
+                drive-strength = <2>;
+                bias-pull-up;
+                input-enable;
+            };
+            data-pins {
+                pins = "gpio75";
+                function = "gpio";
+                drive-strength = <2>;
+                bias-pull-up;
+                input-enable;
+            };
+        };
+
 };
 
 &qupv3_id_0 {
@@ -1820,4 +1876,24 @@
 			};
 		};
 	};
+};
+/*
+ * Samsung Pogo Pin Keyboard Cover (EF-DX710 / STM32 on QUPv3 SE15 / i2c15)
+ */
+&i2c15 {
+    clock-frequency = <100000>;
+    status = "okay";
+
+    pogo_keyboard: keyboard@2a {
+        compatible = "samsung,gts9u-stm32-pogo";
+        reg = <0x2a>;
+        vddo-supply = <&pogo_vddo>;
+        boot-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&tlmm 13 GPIO_ACTIVE_LOW>;
+        connected-gpios = <&tlmm 62 GPIO_ACTIVE_HIGH>;
+        data-ready-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pogo_control>, <&pogo_irqs>;
+        wakeup-source;
+    };
 };
