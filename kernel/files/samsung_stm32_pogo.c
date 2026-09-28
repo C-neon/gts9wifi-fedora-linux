@@ -941,6 +941,7 @@ static int samsung_pogo_register_input(struct samsung_pogo *pogo,
 		input_set_capability(input, EV_KEY, code);
 	input_set_capability(input, EV_LED, LED_CAPSL);
 	input_set_capability(input, EV_SW, SW_LID);
+	input_set_capability(input, EV_KEY, KEY_WAKEUP);
 
 	ret = input_register_device(input);
 	if (ret) {
@@ -1018,6 +1019,11 @@ static void samsung_pogo_report_hall(struct samsung_pogo *pogo,
 
 	pogo->lid_closed = closed;
 	input_report_switch(pogo->input, SW_LID, closed);
+	if (!closed) {
+		input_report_key(pogo->input, KEY_WAKEUP, 1);
+		input_sync(pogo->input);
+		input_report_key(pogo->input, KEY_WAKEUP, 0);
+	}
 	input_sync(pogo->input);
 	dev_info(&pogo->client->dev, "keyboard cover %s\n",
 		 closed ? "closed" : "open");
