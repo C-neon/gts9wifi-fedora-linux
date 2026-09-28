@@ -1,0 +1,53 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# 监听 Tab S9 键盘盖开盖事件 (SW_LID=0) 并自动点亮/唤醒屏幕
+
+# 查找具有 SW_LID 开关的输入设备节点
+LID_DEV=$(grep -l -E "EV=.*21|SW=.*1" /sys/class/input/input*/capabilities/ev 2>/dev/null | sed 's|/capabilities/ev||' | while read -r p; do
+    if [ -e "$p/event*" ]; then
+        basename "$p"/event*
+    fi
+done | head -n 1)
+
+# 如果没通过 sysfs 找到，回退到按设备名称查找
+if [ -z "$LID_DEV" ]; then
+    for ev in /dev/input/event*; do
+        [ -e "$ev" ] || continue
+        name=$(cat "/sys/class/input/$(basename "$ev")/device/name" 2>/dev/null || true)
+        case "$name" in
+            *pogo*|*keyboard*|*cover*|*Pogo*)
+                LID_DEV=$(basename "$ev")
+                break
+                ;;
+        esac
+    done
+fi
+
+[ -z "$LID_DEV" ] && LID_DEV="event0"
+
+EVENT_PATH="/dev/input/$LID_DEV"
+[ -e "$EVENT_PATH" ] || exit 0
+
+echo "gts9wifi-lid-wake: monitoring lid open events on $EVENT_PATH..."
+
+# 使用 evtest 或类似工具监听 SW_LID 事件
+# 当收到 SW_LID 0 (开盖) 时，向图形会话广播唤醒
+evtest "$EVENT_PATH" 2>/dev/null | while read -r line; do
+    case "$line" in
+        *"(SW_LID), value 0"*|*"(code 0), value 0"*)
+            echo "gts9wifi-lid-wake: lid opened, waking display..."
+            # 1. 尝试通过当前活动的桌面会话唤醒 GNOME 屏幕保护
+            USER_ID=$(who | awk '{print $1}' | head -n 1)
+            if [ -n "$USER_ID" ]; then
+                USER_UID=$(id -u "$USER_ID" 2>/dev/null || echo 1000)
+                # 向当前用户的 dbus 发送用户活动模拟，点亮屏幕
+                sudo -u "$USER_ID" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_UID/bus" \
+                    gdbus call --session --dest org.gnome.ScreenSaver \
+                    --object-path /org/gnome/ScreenSaver \
+                    --method org.gnome.ScreenSaver.SimulateUserActivity >/dev/null 2>&1 || true
+            fi
+            # 2. 兜底通用 Wayland / DRM 唤醒：通过 uinput 注入一次虚拟 KEY_WAKEUP
+            # 或者通过 brightnessctl 确保背光不是强制切断状态
+            ;;
+    esac
+done

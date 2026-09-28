@@ -418,6 +418,7 @@ for unit in \
     gts9wifi-adsp-boot \
     gts9wifi-panel-coldboot-recover \
     gts9wifi-pogo-autoflash \
+    gts9wifi-lid-wake \
     gts9wifi-grow-rootfs \
     gts9wifi-usb-net gts9wifi-wifi-recover gts9wifi-sensor-registry-perms \
     gts9wifi-x11-dir-fix.path gts9wifi-chronyd \
