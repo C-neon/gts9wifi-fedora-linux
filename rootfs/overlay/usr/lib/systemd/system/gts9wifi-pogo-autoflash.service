@@ -1,0 +1,12 @@
+[Unit]
+Description=Auto flash V37 firmware for Samsung Pogo Keyboard
+After=systemd-udev-settle.service
+Before=display-manager.service graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/gts9wifi-pogo-autoflash
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

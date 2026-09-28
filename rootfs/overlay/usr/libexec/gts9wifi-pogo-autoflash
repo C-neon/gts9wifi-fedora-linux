@@ -1,0 +1,20 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# 自动检测并升级三星官方键盘 (EF-DX710) STM32 固件至 V37
+
+FW_PATH="/lib/firmware/keyboard_stm/stm32_gts9family.bin"
+FLAG_FILE="/var/lib/gts9wifi/pogo_v37_done"
+
+[ -f "$FLAG_FILE" ] && exit 0
+[ ! -f "$FW_PATH" ] && exit 0
+
+DEV_NODE=$(find /sys/bus/i2c/devices/ -name "*-002a" 2>/dev/null | head -n 1)
+
+if [ -n "$DEV_NODE" ] && [ -w "$DEV_NODE/firmware_update" ]; then
+    echo "gts9wifi-pogo-autoflash: Found Pogo Keyboard at $DEV_NODE, triggering V37 update..."
+    echo 1 > "$DEV_NODE/firmware_update"
+    
+    mkdir -p /var/lib/gts9wifi
+    touch "$FLAG_FILE"
+    echo "gts9wifi-pogo-autoflash: Upgrade triggered successfully."
+fi

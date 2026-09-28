@@ -3,7 +3,7 @@ Description=Recover the SM-X710 panel after a cold boot
 Documentation=https://github.com/agcarbajo/postmarketos-galaxy-tab-s9-ultra
 ConditionPathExists=/sys/power/pm_test
 After=local-fs.target
-Before=display-manager.service
+Before=display-manager.service graphical.target
 
 [Service]
 Type=oneshot

@@ -1,24 +1,14 @@
 > [!IMPORTANT]
-> ### Fork Progress: Official Book Cover Keyboard & Touchpad (EF-DX710) Enablement
+> ### Fork Evolution: Official Book Cover Keyboard (EF-DX710) & Standalone Distro Branch
 > 
-> With the assistance of an AI tool (as my own technical skills are quite limited), I verified that the official Book Cover Keyboard and Touchpad (**EF-DX710**) can fully work on the SM-X710!
+> This fork is evolving into an autonomous, out-of-the-box distribution specifically optimized for the **11-inch Samsung Galaxy Tab S9 (SM-X710 / gts9wifi)**.
 >
-> **What this kernel fork provides:**
-> 1. Ported the `samsung_stm32_pogo` driver and devicetree nodes from the Tab S9 Ultra project.
-> 2. Made the MAX77816 booster check optional in `samsung_stm32_pogo.c` (since the 11" model powers the keyboard directly from PMIC, preventing the probe failure with error `-22`).
-> 3. Added fallback support for the 11" touchpad geometry (`1560x820`).
+> #### 1. Hardware & Driver Enablement
+> - **Kernel Driver**: Integrated and adapted `samsung_stm32_pogo.c` from the Tab S9 Ultra project, removing the mandatory MAX77816 booster check (which caused `-EINVAL / -22` on SM-X710) and properly setting 11-inch touchpad geometry (`1560x820`).
+> - **Out-of-the-Box V37 Firmware**: Automatic firmware checking and flashing are integrated into the rootfs (`gts9wifi-pogo-autoflash`). When booting with the keyboard attached, the system automatically checks and flashes the required V37 firmware (`stm32_gts9family.bin`), removing the need for manual sysfs execution.
 >
-> **⚠️ Required Manual Step for Firmware (V34 -> V37):**
-> This kernel build alone **does not** automatically fix the keyboard if it was previously used in Android / One UI (which leaves the STM32 MCU on stock **V34** firmware). The mainline driver strictly requires **V37** (`stm32_gts9family.bin`, 52,132 bytes).
->
-> After installing this kernel, you must manually stage the V37 firmware and trigger the flash:
-> 1. Obtain `stm32_gts9family.bin` (e.g. extracted from `ubuntu-gts9u-hardware_1.2.0_arm64.deb` in the Ultra 1.2.0 release).
-> 2. Place it into `/lib/firmware/keyboard_stm/stm32_gts9family.bin`.
-> 3. With the keyboard attached, run:
->    ```bash
->    echo 1 | sudo tee /sys/bus/i2c/devices/9-002a/firmware_update
->    ```
-> Once updated to V37, both keyboard typing and the multi-touch touchpad work flawlessly.
+> #### 2. Generic Display Manager & Compositor Decoupling
+> - Cold-boot recovery and sensor orchestration services have been decoupled from GNOME-specific dependencies (`Before=display-manager.service graphical.target`), paving the way for testing and replacing GNOME with modern touch-friendly Wayland compositors (such as **Denial** and **Niri**).
 
 
 # Fedora on the Samsung Galaxy Tab S9 Wi-Fi (SM-X710)
