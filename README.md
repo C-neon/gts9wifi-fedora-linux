@@ -7,7 +7,7 @@
 >
 > **Key Adaptations & Progress:**
 > 1. **Kernel Driver**: Ported and adapted `samsung_stm32_pogo.c` from the Tab S9 Ultra project, removing the mandatory MAX77816 booster check (which caused `-EINVAL / -22` on the 11" model) and adding geometry handling for the 11" touchpad (`1560x820`).
-> 2. **Firmware Handling**: Added an automatic check and flash helper (`gts9wifi-pogo-autoflash`) to simplify upgrading the keyboard STM32 MCU firmware from stock Android V34 to the required V37 (`stm32_gts9family.bin`).
+> 2. **Firmware Handling**: Integrated in-kernel automatic firmware verification and update directly in `samsung_stm32_pogo.c`. If the STM32 MCU is detected on stock Android V34 firmware, the kernel asynchronously requests and programs the required V37 payload (`stm32_gts9family.bin`), making it completely autonomous without userland scripts.
 > 3. **Experimental Decoupling**: Minor tweaks to boot services (e.g. `gts9wifi-panel-coldboot-recover`) to allow experimenting with other Wayland compositors in the future.
 
 

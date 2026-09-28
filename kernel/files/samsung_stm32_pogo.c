@@ -91,6 +91,7 @@ struct samsung_pogo {
 	u16 touchpad_max_y;
 	struct delayed_work connection_work;
 	struct delayed_work application_work;
+	struct work_struct fw_work;
 	struct mutex lock;
 	struct mutex power_lock;
 	int data_irq;
@@ -513,23 +514,19 @@ out_start_app:
 	return ret;
 }
 
-static ssize_t firmware_update_store(struct device *dev,
-				     struct device_attribute *attribute,
-				     const char *buf, size_t count)
+static int samsung_pogo_do_firmware_update(struct samsung_pogo *pogo)
 {
 	static const u8 expected_version[] = { 0x00, 0x37, 0x00, 0x37 };
-	struct samsung_pogo *pogo = dev_get_drvdata(dev);
+	struct device *dev = &pogo->client->dev;
 	const struct firmware *firmware;
 	int ret;
 
-	if (!sysfs_streq(buf, "1"))
-		return -EINVAL;
 	if (!pogo->bootloader_reachable)
 		return -ENODEV;
 	if (!memcmp(pogo->flash_version, expected_version,
 		    sizeof(expected_version))) {
 		dev_info(dev, "STM32 firmware is already current\n");
-		return count;
+		return 0;
 	}
 
 	ret = request_firmware(&firmware, STM32_FW_NAME, dev);
@@ -546,18 +543,6 @@ static ssize_t firmware_update_store(struct device *dev,
 		goto out_release;
 	}
 
-	/*
-	 * No cover required.  This used to refuse unless the connection GPIO was
-	 * high, on the assumption that the controller rode the same rail as the
-	 * accessory.  Measured with the cover detached, pogo_vddo disabled and
-	 * connected=0, the ROM bootloader still answered with its product id and
-	 * flash version: the rail that is cut feeds the keyboard, not the MCU,
-	 * which is on the tablet's own I2C6 and independent of it.
-	 *
-	 * Dropping the check is what lets a fresh install repair itself without
-	 * the owner knowing there was anything to repair, and writing with no
-	 * cover attached is if anything quieter: no connection pulses to race.
-	 */
 	disable_irq(pogo->connection_irq);
 	cancel_delayed_work_sync(&pogo->connection_work);
 	samsung_pogo_set_data_irq(pogo, false);
@@ -572,6 +557,28 @@ static ssize_t firmware_update_store(struct device *dev,
 
 out_release:
 	release_firmware(firmware);
+	return ret;
+}
+
+static void samsung_pogo_fw_work(struct work_struct *work)
+{
+	struct samsung_pogo *pogo = container_of(work, struct samsung_pogo, fw_work);
+
+	dev_info(&pogo->client->dev, "checking STM32 firmware in background\n");
+	samsung_pogo_do_firmware_update(pogo);
+}
+
+static ssize_t firmware_update_store(struct device *dev,
+				     struct device_attribute *attribute,
+				     const char *buf, size_t count)
+{
+	struct samsung_pogo *pogo = dev_get_drvdata(dev);
+	int ret;
+
+	if (!sysfs_streq(buf, "1"))
+		return -EINVAL;
+
+	ret = samsung_pogo_do_firmware_update(pogo);
 	return ret ? ret : count;
 }
 static DEVICE_ATTR_WO(firmware_update);
@@ -1386,6 +1393,7 @@ static int samsung_pogo_probe(struct i2c_client *client)
 	mutex_init(&pogo->power_lock);
 	INIT_DELAYED_WORK(&pogo->connection_work, samsung_pogo_connection_work);
 	INIT_DELAYED_WORK(&pogo->application_work, samsung_pogo_application_work);
+	INIT_WORK(&pogo->fw_work, samsung_pogo_fw_work);
 	i2c_set_clientdata(client, pogo);
 
 	pogo->vddo = devm_regulator_get(dev, "vddo");
@@ -1422,6 +1430,13 @@ static int samsung_pogo_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(pogo->reset), "failed to get reset\n");
 
 	samsung_pogo_probe_bootloader(pogo);
+
+	if (pogo->bootloader_reachable &&
+	    memcmp(pogo->flash_version, (u8[]){ 0x00, 0x37, 0x00, 0x37 }, 4)) {
+		dev_warn(dev, "STM32 firmware is %*ph (expected V37); queuing auto-update\n",
+			 (int)sizeof(pogo->flash_version), pogo->flash_version);
+		schedule_work(&pogo->fw_work);
+	}
 
 	pogo->data_ready = devm_gpiod_get(dev, "data-ready", GPIOD_IN);
 	if (IS_ERR(pogo->data_ready))
@@ -1510,6 +1525,7 @@ static void samsung_pogo_remove(struct i2c_client *client)
 	device_remove_file(&client->dev, &dev_attr_event_poll);
 	cancel_delayed_work_sync(&pogo->connection_work);
 	cancel_delayed_work_sync(&pogo->application_work);
+	cancel_work_sync(&pogo->fw_work);
 	if (pogo->wake_enabled)
 		disable_irq_wake(pogo->connection_irq);
 	samsung_pogo_set_data_irq(pogo, false);
@@ -1525,6 +1541,7 @@ static const struct of_device_id samsung_pogo_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, samsung_pogo_of_match);
+MODULE_FIRMWARE(STM32_FW_NAME);
 
 static struct i2c_driver samsung_pogo_driver = {
 	.driver = {
