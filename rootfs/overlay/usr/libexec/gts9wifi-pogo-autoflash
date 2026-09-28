@@ -2,19 +2,70 @@
 # SPDX-License-Identifier: MIT
 # 自动检测并升级三星官方键盘 (EF-DX710) STM32 固件至 V37
 
-FW_PATH="/lib/firmware/keyboard_stm/stm32_gts9family.bin"
-FLAG_FILE="/var/lib/gts9wifi/pogo_v37_done"
+log() {
+    echo "gts9wifi-pogo-autoflash: $*"
+}
 
-[ -f "$FLAG_FILE" ] && exit 0
-[ ! -f "$FW_PATH" ] && exit 0
+# 固件文件必须存在
+if [ ! -f /lib/firmware/keyboard_stm/stm32_gts9family.bin ] && [ ! -f /usr/lib/firmware/keyboard_stm/stm32_gts9family.bin ]; then
+    log "Firmware stm32_gts9family.bin not found; skipping."
+    exit 0
+fi
 
-DEV_NODE=$(find /sys/bus/i2c/devices/ -name "*-002a" 2>/dev/null | head -n 1)
+# 最多轮询等待 15 秒，确保 I2C 设备完成枚举与探测
+DEV_NODE=""
+tries=0
+while [ "$tries" -lt 15 ]; do
+    for node in /sys/bus/i2c/devices/*-002a; do
+        if [ -d "$node" ] && [ -w "$node/firmware_update" ]; then
+            DEV_NODE="$node"
+            break 2
+        fi
+    done
+    sleep 1
+    tries=$((tries + 1))
+done
 
-if [ -n "$DEV_NODE" ] && [ -w "$DEV_NODE/firmware_update" ]; then
-    echo "gts9wifi-pogo-autoflash: Found Pogo Keyboard at $DEV_NODE, triggering V37 update..."
-    echo 1 > "$DEV_NODE/firmware_update"
-    
-    mkdir -p /var/lib/gts9wifi
-    touch "$FLAG_FILE"
-    echo "gts9wifi-pogo-autoflash: Upgrade triggered successfully."
+if [ -z "$DEV_NODE" ]; then
+    log "Pogo device node not found or not writable after 15s; exiting."
+    exit 0
+fi
+
+# 检查当前固件版本状态
+# 驱动在 sysfs diagnostics 属性中直接暴露 flash_version
+# 期望版本为 00370037
+NEEDS_UPDATE=0
+
+if [ -r "$DEV_NODE/diagnostics" ]; then
+    DIAG=$(cat "$DEV_NODE/diagnostics" 2>/dev/null)
+    case "$DIAG" in
+        *flash_version=00370037*)
+            log "Device at $DEV_NODE is already on current firmware (V37)."
+            exit 0
+            ;;
+        *flash_version=00340034*)
+            log "Device at $DEV_NODE is on legacy firmware (V34); update required."
+            NEEDS_UPDATE=1
+            ;;
+        *)
+            # 可能是 bootloader 模式或未知版本
+            log "Diagnostics reports non-V37 flash_version ($DIAG); attempting update."
+            NEEDS_UPDATE=1
+            ;;
+    esac
+else
+    # 兜底：如果 diagnostics 不可读，通过 dmesg 检查
+    if dmesg | grep -i "pogo" | tail -n 30 | grep -q "00 34 00 34"; then
+        log "Legacy V34 detected via dmesg; update required."
+        NEEDS_UPDATE=1
+    fi
+fi
+
+if [ "$NEEDS_UPDATE" = 1 ]; then
+    log "Triggering STM32 firmware update to V37 on $DEV_NODE..."
+    if echo 1 > "$DEV_NODE/firmware_update" 2>/dev/null; then
+        log "Firmware update command accepted."
+    else
+        log "Failed to trigger firmware update on $DEV_NODE."
+    fi
 fi
