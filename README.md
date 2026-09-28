@@ -1,14 +1,14 @@
 > [!IMPORTANT]
-> ### Fork Evolution: Official Book Cover Keyboard (EF-DX710) & Standalone Distro Branch
+> ### Fork Note: Official Book Cover Keyboard (EF-DX710) Enablement & Experiments
 > 
-> This fork is evolving into an autonomous, out-of-the-box distribution specifically optimized for the **11-inch Samsung Galaxy Tab S9 (SM-X710 / gts9wifi)**.
+> Due to my own limited technical expertise, this work is conducted with extensive assistance from AI tools.
+> 
+> The primary purpose of this fork is to build directly upon the outstanding upstream work by **nacht20-de**, with the specific goal of testing and adding hardware support for the 11-inch model's official Book Cover Keyboard and Touchpad (**EF-DX710**).
 >
-> #### 1. Hardware & Driver Enablement
-> - **Kernel Driver**: Integrated and adapted `samsung_stm32_pogo.c` from the Tab S9 Ultra project, removing the mandatory MAX77816 booster check (which caused `-EINVAL / -22` on SM-X710) and properly setting 11-inch touchpad geometry (`1560x820`).
-> - **Out-of-the-Box V37 Firmware**: Automatic firmware checking and flashing are integrated into the rootfs (`gts9wifi-pogo-autoflash`). When booting with the keyboard attached, the system automatically checks and flashes the required V37 firmware (`stm32_gts9family.bin`), removing the need for manual sysfs execution.
->
-> #### 2. Generic Display Manager & Compositor Decoupling
-> - Cold-boot recovery and sensor orchestration services have been decoupled from GNOME-specific dependencies (`Before=display-manager.service graphical.target`), paving the way for testing and replacing GNOME with modern touch-friendly Wayland compositors (such as **Denial** and **Niri**).
+> **Key Adaptations & Progress:**
+> 1. **Kernel Driver**: Ported and adapted `samsung_stm32_pogo.c` from the Tab S9 Ultra project, removing the mandatory MAX77816 booster check (which caused `-EINVAL / -22` on the 11" model) and adding geometry handling for the 11" touchpad (`1560x820`).
+> 2. **Firmware Handling**: Added an automatic check and flash helper (`gts9wifi-pogo-autoflash`) to simplify upgrading the keyboard STM32 MCU firmware from stock Android V34 to the required V37 (`stm32_gts9family.bin`).
+> 3. **Experimental Decoupling**: Minor tweaks to boot services (e.g. `gts9wifi-panel-coldboot-recover`) to allow experimenting with other Wayland compositors in the future.
 
 
 # Fedora on the Samsung Galaxy Tab S9 Wi-Fi (SM-X710)
