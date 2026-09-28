@@ -1,3 +1,16 @@
+[!NOTE]
+
+Fork Update: Official Book Cover Keyboard & Touchpad (EF-DX710) Working
+
+With the assistance of an AI tool (as my own technical skills are quite limited), I managed to get the official keyboard and touchpad fully working on the SM-X710!
+
+Summary of changes:
+1. Ported the samsung_stm32_pogo driver and DTS nodes from the Tab S9 Ultra port.
+2. Made the MAX77816 booster check optional in the driver since the 11" model supplies power directly from PMIC without this chip (otherwise probe failed with error -22).
+3. Flashed the V37 MCU firmware (stm32_gts9family.bin) via sysfs to replace the stock One UI V34 firmware.
+
+Both the physical keyboard keys and the touchpad are now working perfectly.
+
 # Fedora on the Samsung Galaxy Tab S9 Wi-Fi (SM-X710)
 
 <img width="2560" height="1600" alt="Screenshot From 2026-09-19 21-11-57" src="https://github.com/user-attachments/assets/02131237-9f32-4939-8583-e29a04e767c9" />
