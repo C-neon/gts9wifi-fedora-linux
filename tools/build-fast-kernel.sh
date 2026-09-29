@@ -116,9 +116,9 @@ RELEASE_NOTES="⚠️ Experimental testing build for Samsung Galaxy Tab S9 (SM-X
 This is a rolling test build and may be updated or replaced without notice."
 
 if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-    gh release edit "$RELEASE_TAG" --title "Experimental Test Build ($RELEASE_TAG)" --notes "$RELEASE_NOTES" --prerelease
+    gh release edit "$RELEASE_TAG" --title "Experimental Test Build ($RELEASE_TAG)" --notes "$RELEASE_NOTES" --prerelease --latest=false
 else
-    gh release create "$RELEASE_TAG" --title "Experimental Test Build ($RELEASE_TAG)" --notes "$RELEASE_NOTES" --prerelease
+    gh release create "$RELEASE_TAG" --title "Experimental Test Build ($RELEASE_TAG)" --notes "$RELEASE_NOTES" --prerelease --latest=false
 fi
 
 gh release upload "$RELEASE_TAG" --clobber \
