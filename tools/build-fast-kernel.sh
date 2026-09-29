@@ -65,7 +65,7 @@ fi
 echo "--> 4. 开始全核并行极速编译 (32 线程)..."
 export ARCH=arm64
 
-make -j$(nproc) ARCH=arm64 LLVM=1 Image.gz dtbs modules
+make -j$(nproc) ARCH=arm64 LLVM=1 vmlinuz.efi dtbs modules
 
 # 5. 生成 initramfs
 echo "--> 5. 构建 initramfs (集成 GPU 固件与 USB-Net)..."
@@ -75,7 +75,7 @@ mkdir -p "$STAGE_DIR/boot" "$STAGE_DIR/usr/lib/modules" "$STAGE_DIR/out-bundle" 
 
 # 安装模块到临时目录
 make -j$(nproc) ARCH=arm64 LLVM=1 modules_install INSTALL_MOD_PATH="$STAGE_DIR/usr" INSTALL_MOD_STRIP=1
-cp arch/arm64/boot/Image.gz "$STAGE_DIR/boot/vmlinuz-$KVER"
+cp arch/arm64/boot/vmlinuz.efi "$STAGE_DIR/boot/vmlinuz-$KVER"
 mkdir -p "$STAGE_DIR/boot/dtbs-$KVER/qcom"
 cp arch/arm64/boot/dts/qcom/sm8550-samsung-gts9wifi.dtb "$STAGE_DIR/boot/dtbs-$KVER/qcom/"
 
