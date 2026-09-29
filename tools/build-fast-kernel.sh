@@ -1,23 +1,19 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 # 本地极速内核编译 & 发布脚本 (运行于宿主机 WSL2)
-# 利用 i9-13980HX 24核32线程 全核并行加速，产物直推 GitHub Releases
+# 产物自动推送到 GitHub Pre-release (experimental 滚动测试标签)
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KVER="7.2.0-gts9wifi"
-RELEASE_TAG="${1:-}"
-
-if [ -z "$RELEASE_TAG" ]; then
-    RELEASE_TAG="kernel-7.2.0-local-$(date +%Y%m%d-%H%M)"
-fi
+RELEASE_TAG="${1:-experimental}"
 
 echo "=========================================================="
 echo " GTS9WIFI 本地高速内核编译构建系统"
 echo " 目标版本: $KVER"
-echo " 发布标签: $RELEASE_TAG"
-echo " 并行线程: $(nproc) 线程 (i9-13980HX)"
+echo " 发布标签: $RELEASE_TAG (Pre-release)"
+echo " 并行线程: $(nproc) 线程"
 echo "=========================================================="
 
 cd "$REPO_DIR"
@@ -62,7 +58,7 @@ else
 fi
 
 # 4. 交叉编译内核与设备树
-echo "--> 4. 开始全核并行极速编译 (32 线程)..."
+echo "--> 4. 开始全核并行极速编译..."
 export ARCH=arm64
 
 make -j$(nproc) ARCH=arm64 LLVM=1 vmlinuz.efi dtbs modules
@@ -107,14 +103,23 @@ bash "$REPO_DIR/boot/build-bundle.sh" \
 python3 "$REPO_DIR/tools/make-twrp-zip.py" "$STAGE_DIR/out-bundle" \
     "$STAGE_DIR/out-twrp/gts9wifi-fedora-$KVER.zip" --project "$REPO_DIR"
 
-# 7. 上传至 GitHub Releases
-echo "--> 7. 推送产物直达 GitHub Releases ($RELEASE_TAG)..."
+# 7. 上传至 GitHub Pre-release (滚动覆盖)
+echo "--> 7. 推送产物直达 GitHub Pre-release ($RELEASE_TAG)..."
 cd "$REPO_DIR"
 mv "$STAGE_DIR/out-bundle/SHA256SUMS" "$STAGE_DIR/out-bundle/BUNDLE-SHA256SUMS" || true
 
-gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-    gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" \
-        --notes "Compiled locally in ~3 minutes on i9-13980HX (32 threads). Contains V37 Pogo auto-flash, KEY_WAKEUP display wake, and anti-suspend watchdog stability fixes."
+RELEASE_NOTES="⚠️ Experimental testing build for Samsung Galaxy Tab S9 (SM-X710).
+- Pogo STM32 V37 firmware auto-flash
+- Display KEY_WAKEUP lid event support
+- Global suspend disabled for watchdog stability
+
+This is a rolling test build and may be updated or replaced without notice."
+
+if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+    gh release edit "$RELEASE_TAG" --title "Experimental Test Build ($RELEASE_TAG)" --notes "$RELEASE_NOTES" --prerelease
+else
+    gh release create "$RELEASE_TAG" --title "Experimental Test Build ($RELEASE_TAG)" --notes "$RELEASE_NOTES" --prerelease
+fi
 
 gh release upload "$RELEASE_TAG" --clobber \
     "$STAGE_DIR"/out-bundle/*.img "$STAGE_DIR"/out-bundle/BUNDLE-SHA256SUMS "$STAGE_DIR"/out-bundle/BUILD-METADATA.txt \
@@ -122,5 +127,5 @@ gh release upload "$RELEASE_TAG" --clobber \
 
 echo "=========================================================="
 echo " 编译与发布完成！"
-echo " Release 页面: https://github.com/C-neon/gts9wifi-fedora-linux/releases/tag/$RELEASE_TAG"
+echo " Pre-release 页面: https://github.com/C-neon/gts9wifi-fedora-linux/releases/tag/$RELEASE_TAG"
 echo "=========================================================="
