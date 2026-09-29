@@ -103,8 +103,42 @@ bash "$REPO_DIR/boot/build-bundle.sh" \
 python3 "$REPO_DIR/tools/make-twrp-zip.py" "$STAGE_DIR/out-bundle" \
     "$STAGE_DIR/out-twrp/gts9wifi-fedora-$KVER.zip" --project "$REPO_DIR"
 
-# 7. 上传至 GitHub Pre-release (滚动覆盖)
-echo "--> 7. 推送产物直达 GitHub Pre-release ($RELEASE_TAG)..."
+# 7. 打包内核 RPM 安装包 (提供完整的 /usr/lib/modules 内核模块与符号)
+echo "--> 7. 构建 aarch64 内核 RPM 安装包..."
+mkdir -p /home/neon/rpmbuild/BUILDROOT/linux-gts9wifi-7.2.0-0.1.fc44.aarch64/boot
+mkdir -p /home/neon/rpmbuild/BUILDROOT/linux-gts9wifi-7.2.0-0.1.fc44.aarch64/usr/lib/modules
+mkdir -p /home/neon/rpmbuild/SPECS "$STAGE_DIR/out-kernel"
+
+cp -a "$STAGE_DIR/boot"/* /home/neon/rpmbuild/BUILDROOT/linux-gts9wifi-7.2.0-0.1.fc44.aarch64/boot/
+cp -a "$STAGE_DIR/usr/lib/modules/7.2.0-gts9wifi" /home/neon/rpmbuild/BUILDROOT/linux-gts9wifi-7.2.0-0.1.fc44.aarch64/usr/lib/modules/
+touch /home/neon/rpmbuild/BUILDROOT/linux-gts9wifi-7.2.0-0.1.fc44.aarch64/COPYING
+
+cat << 'EOF' > /home/neon/rpmbuild/SPECS/linux-gts9wifi.spec
+%define debug_package %{nil}
+%define _build_id_links none
+Name:           linux-gts9wifi
+Version:        7.2.0
+Release:        0.1.fc44
+Summary:        Mainline Linux kernel for Samsung Galaxy Tab S9 Wi-Fi (gts9wifi)
+License:        GPL-2.0-only
+BuildArch:      aarch64
+Provides:       kernel-uname-r
+AutoReqProv:    no
+
+%description
+Mainline 7.2.0 kernel and module tree for Samsung Galaxy Tab S9 Wi-Fi.
+
+%files
+%license COPYING
+/boot/*
+/usr/lib/modules/*
+EOF
+
+rpmbuild -bb --target aarch64 --buildroot /home/neon/rpmbuild/BUILDROOT/linux-gts9wifi-7.2.0-0.1.fc44.aarch64 /home/neon/rpmbuild/SPECS/linux-gts9wifi.spec
+cp /home/neon/rpmbuild/RPMS/aarch64/*.rpm "$STAGE_DIR/out-kernel/"
+
+# 8. 上传至 GitHub Pre-release (滚动覆盖)
+echo "--> 8. 推送产物直达 GitHub Pre-release ($RELEASE_TAG)..."
 cd "$REPO_DIR"
 mv "$STAGE_DIR/out-bundle/SHA256SUMS" "$STAGE_DIR/out-bundle/BUNDLE-SHA256SUMS" || true
 
@@ -122,6 +156,7 @@ else
 fi
 
 gh release upload "$RELEASE_TAG" --clobber \
+    "$STAGE_DIR"/out-kernel/*.rpm \
     "$STAGE_DIR"/out-bundle/*.img "$STAGE_DIR"/out-bundle/BUNDLE-SHA256SUMS "$STAGE_DIR"/out-bundle/BUILD-METADATA.txt \
     "$STAGE_DIR"/out-twrp/*.zip
 
