@@ -109,16 +109,16 @@ python3 "$REPO_DIR/tools/make-twrp-zip.py" "$STAGE_DIR/out-bundle" \
 
 # 7. 上传至 GitHub Releases
 echo "--> 7. 推送产物直达 GitHub Releases ($RELEASE_TAG)..."
-cd "$STAGE_DIR"
-mv out-bundle/SHA256SUMS out-bundle/BUNDLE-SHA256SUMS || true
+cd "$REPO_DIR"
+mv "$STAGE_DIR/out-bundle/SHA256SUMS" "$STAGE_DIR/out-bundle/BUNDLE-SHA256SUMS" || true
 
 gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
     gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" \
         --notes "Compiled locally in ~3 minutes on i9-13980HX (32 threads). Contains V37 Pogo auto-flash, KEY_WAKEUP display wake, and anti-suspend watchdog stability fixes."
 
 gh release upload "$RELEASE_TAG" --clobber \
-    out-bundle/*.img out-bundle/BUNDLE-SHA256SUMS out-bundle/BUILD-METADATA.txt \
-    out-twrp/*.zip
+    "$STAGE_DIR"/out-bundle/*.img "$STAGE_DIR"/out-bundle/BUNDLE-SHA256SUMS "$STAGE_DIR"/out-bundle/BUILD-METADATA.txt \
+    "$STAGE_DIR"/out-twrp/*.zip
 
 echo "=========================================================="
 echo " 编译与发布完成！"
