@@ -113,8 +113,8 @@ jobs:
           REL: ${{ inputs.release_tag }}
         run: |
           gh release view "$REL" >/dev/null 2>&1 || \
-            gh release create "$REL" --title "$REL" \
-              --notes "Built by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            gh release create "$REL" --title "Experimental Test Build ($REL)" --prerelease --latest=false \
+              --notes "Automated GitHub Actions build for $REL"
           # Rename the bundle checksums so kernel and rootfs runs can publish
           # into the SAME release tag without clobbering each other's
           # SHA256SUMS asset (the rootfs run uploads its own).
