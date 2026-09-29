@@ -47,13 +47,19 @@ fi
 # 3. 准备打补丁源码树
 BUILD_TREE="/home/neon/kbuild/linux-7.2"
 echo "--> 3. 准备源码并打入 SM-X710 专属补丁..."
-rm -rf /home/neon/kbuild
-mkdir -p /home/neon/kbuild
-tar xf "$CACHE_DIR/linux-7.2.tar.gz" -C /home/neon/kbuild
-
-cd "$BUILD_TREE"
-bash "$REPO_DIR/kernel/prepare.sh" .
-echo "-gts9wifi" > localversion-gts9wifi
+if [ ! -d "$BUILD_TREE" ]; then
+    rm -rf /home/neon/kbuild
+    mkdir -p /home/neon/kbuild
+    tar xf "$CACHE_DIR/linux-7.2.tar.gz" -C /home/neon/kbuild
+    cd "$BUILD_TREE"
+    bash "$REPO_DIR/kernel/prepare.sh" .
+    echo "-gts9wifi" > localversion-gts9wifi
+else
+    cd "$BUILD_TREE"
+    cp -a "$REPO_DIR/kernel/files/"* drivers/input/keyboard/ 2>/dev/null || true
+    cp "$REPO_DIR/kernel/files/samsung_stm32_pogo.c" drivers/input/keyboard/ 2>/dev/null || true
+    cp "$REPO_DIR/kernel/files/sm8550-samsung-gts9wifi.dts" arch/arm64/boot/dts/qcom/ 2>/dev/null || true
+fi
 
 # 4. 交叉编译内核与设备树
 echo "--> 4. 开始全核并行极速编译 (32 线程)..."
@@ -74,17 +80,16 @@ mkdir -p "$STAGE_DIR/boot/dtbs-$KVER/qcom"
 cp arch/arm64/boot/dts/qcom/sm8550-samsung-gts9wifi.dtb "$STAGE_DIR/boot/dtbs-$KVER/qcom/"
 
 # 临时解压 GPU 固件以供 dracut 抓取
-sudo tar xzf "$CACHE_DIR/fw.tar.gz" -C /
+tar xzf "$CACHE_DIR/fw.tar.gz" -C /home/neon/stage/
 
-sudo cp -a "$REPO_DIR/boot/dracut/90gts9wifi-usbnet" /usr/lib/dracut/modules.d/ 2>/dev/null || true
-sudo cp "$REPO_DIR/boot/dracut/dracut.conf.d/gts9wifi.conf" /etc/dracut.conf.d/ 2>/dev/null || true
+mkdir -p /home/neon/.local/share/dracut/modules.d
+cp -a "$REPO_DIR/boot/dracut/90gts9wifi-usbnet" /home/neon/.local/share/dracut/modules.d/ 2>/dev/null || true
 
-# 挂载临时模块供 dracut 扫描
-sudo mkdir -p "/lib/modules/$KVER"
-sudo cp -a "$STAGE_DIR/usr/lib/modules/$KVER"/* "/lib/modules/$KVER/" 2>/dev/null || true
-sudo depmod -a "$KVER" 2>/dev/null || true
-
-dracut --kver "$KVER" --force "$STAGE_DIR/boot/initramfs.img"
+dracut --kver "$KVER" --kmoddir "$STAGE_DIR/usr/lib/modules/$KVER" \
+    --include "$STAGE_DIR/usr/lib/firmware" /usr/lib/firmware \
+    --include "$REPO_DIR/boot/dracut/90gts9wifi-usbnet" /usr/lib/dracut/modules.d/90gts9wifi-usbnet \
+    --conf "$REPO_DIR/boot/dracut/dracut.conf.d/gts9wifi.conf" \
+    --force "$STAGE_DIR/boot/initramfs.img"
 
 # 6. 生成 Android 启动镜像 Bundle 与 TWRP ZIP
 echo "--> 6. 生成 Android V4 引导 Bundle 与 TWRP 刷机 ZIP..."
