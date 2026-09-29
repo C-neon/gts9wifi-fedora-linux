@@ -80,13 +80,16 @@ mkdir -p "$STAGE_DIR/boot/dtbs-$KVER/qcom"
 cp arch/arm64/boot/dts/qcom/sm8550-samsung-gts9wifi.dtb "$STAGE_DIR/boot/dtbs-$KVER/qcom/"
 
 # 临时解压 GPU 固件以供 dracut 抓取
-tar xzf "$CACHE_DIR/fw.tar.gz" -C /home/neon/stage/
+if [ ! -f /usr/lib/firmware/qcom/a740_sqe.fw ]; then
+    echo "--> 安装 GPU 固件至系统..."
+    sudo mkdir -p /usr/lib/firmware
+    sudo tar xzf "$CACHE_DIR/fw.tar.gz" -C /
+fi
 
 mkdir -p /home/neon/.local/share/dracut/modules.d
 cp -a "$REPO_DIR/boot/dracut/90gts9wifi-usbnet" /home/neon/.local/share/dracut/modules.d/ 2>/dev/null || true
 
 dracut --kver "$KVER" --kmoddir "$STAGE_DIR/usr/lib/modules/$KVER" \
-    --include "$STAGE_DIR/usr/lib/firmware" /usr/lib/firmware \
     --include "$REPO_DIR/boot/dracut/90gts9wifi-usbnet" /usr/lib/dracut/modules.d/90gts9wifi-usbnet \
     --conf "$REPO_DIR/boot/dracut/dracut.conf.d/gts9wifi.conf" \
     --force "$STAGE_DIR/boot/initramfs.img"
